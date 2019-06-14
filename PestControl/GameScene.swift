@@ -34,6 +34,7 @@ class GameScene: SKScene {
   
   var background: SKTileMapNode!
   var player = Player()
+  var bugsNode = SKNode()
   
   required init?(coder aDecoder: NSCoder) {
     super.init(coder: aDecoder)
@@ -46,6 +47,8 @@ class GameScene: SKScene {
     
     setupCamera()
     setupWorldPhysics()
+    
+    createBugs()
   }
   
   override func touchesBegan(_ touches: Set<UITouch>,
@@ -95,4 +98,39 @@ class GameScene: SKScene {
     background.physicsBody =
       SKPhysicsBody(edgeLoopFrom: background.frame)
   }
+  
+  func tile(in tileMap: SKTileMapNode,
+            at coordinates: TileCoordinates)
+    -> SKTileDefinition? {
+      return tileMap.tileDefinition(atColumn: coordinates.column,
+                                    row: coordinates.row)
+  }
+  
+  func createBugs() {
+    guard let bugsMap = childNode(withName: "bugs")
+      as? SKTileMapNode else { return }
+    // 1
+    for row in 0..<bugsMap.numberOfRows {
+      for column in 0..<bugsMap.numberOfColumns {
+        // 2
+        guard let tile = tile(in: bugsMap, at: (column, row))
+          else { continue }
+        // 3
+        let bug = Bug()
+        bug.position = bugsMap.centerOfTile(atColumn: column,
+                                            row: row)
+        bugsNode.addChild(bug)
+        bug.move()
+      }
+    }
+    // 4
+    bugsNode.name = "Bugs"
+    addChild(bugsNode)
+    // 5
+    bugsMap.removeFromParent()
+    
+    
+    
+  }
+  
 }
