@@ -30,6 +30,9 @@ class Bug: SKSpriteNode {
     physicsBody?.restitution = 0.5
     physicsBody?.allowsRotation = false
     
+    // physics
+    physicsBody?.categoryBitMask = PhysicsCategory.Bug
+    
     createAnimations(character: "bug")
   }
   
@@ -56,6 +59,18 @@ class Bug: SKSpriteNode {
     // 3
     run(animations[direction.rawValue], withKey: "animation")
     run(SKAction.sequence([moveBy, moveAgain]))
+  }
+  
+  func die() {
+    // 1
+    removeAllActions()
+    texture = SKTexture(pixelImageNamed: "bug_lt1")
+    yScale = -1
+    // 2
+    physicsBody = nil
+    // 3
+    run(SKAction.sequence([SKAction.fadeOut(withDuration: 3),
+                           SKAction.removeFromParent()]))
   }
   
 }
