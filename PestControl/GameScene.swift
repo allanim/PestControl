@@ -77,6 +77,8 @@ class GameScene: SKScene {
     if !player.hasBugspray {
       updateBugspray()
     }
+    
+    advanceBreakableTile(locatedAt: player.position)
   }
   
   func setupCamera() {
@@ -165,29 +167,53 @@ class GameScene: SKScene {
   }
   
   // obstacle
+//  func setupObstaclePhysics() {
+//    guard let obstaclesTileMap = obstaclesTileMap else { return }
+//    // 1
+//    var physicsBodies = [SKPhysicsBody]()
+//    // 2
+//    for row in 0..<obstaclesTileMap.numberOfRows {
+//      for column in 0..<obstaclesTileMap.numberOfColumns {
+//        guard let tile = tile(in: obstaclesTileMap,
+//                              at: (column, row))
+//          else { continue }
+//        // 3
+//        let center = obstaclesTileMap
+//          .centerOfTile(atColumn: column, row: row)
+//        let body = SKPhysicsBody(rectangleOf: tile.size,
+//                                 center: center)
+//        physicsBodies.append(body)
+//      }
+//    }
+//    // 4
+//    obstaclesTileMap.physicsBody =
+//      SKPhysicsBody(bodies: physicsBodies)
+//    obstaclesTileMap.physicsBody?.isDynamic = false
+//    obstaclesTileMap.physicsBody?.friction = 0
+//  }
   func setupObstaclePhysics() {
     guard let obstaclesTileMap = obstaclesTileMap else { return }
     // 1
-    var physicsBodies = [SKPhysicsBody]()
-    // 2
     for row in 0..<obstaclesTileMap.numberOfRows {
       for column in 0..<obstaclesTileMap.numberOfColumns {
+        // 2
         guard let tile = tile(in: obstaclesTileMap,
                               at: (column, row))
           else { continue }
+        guard tile.userData?.object(forKey: "obstacle") != nil
+          else { continue }
         // 3
-        let center = obstaclesTileMap
-          .centerOfTile(atColumn: column, row: row)
-        let body = SKPhysicsBody(rectangleOf: tile.size,
-                                 center: center)
-        physicsBodies.append(body)
+        let node = SKNode()
+        node.physicsBody = SKPhysicsBody(rectangleOf: tile.size)
+        node.physicsBody?.isDynamic = false
+        node.physicsBody?.friction = 0
+        node.physicsBody?.categoryBitMask =
+          PhysicsCategory.Breakable
+        node.position = obstaclesTileMap.centerOfTile(
+          atColumn: column, row: row)
+        obstaclesTileMap.addChild(node)
       }
     }
-    // 4
-    obstaclesTileMap.physicsBody =
-      SKPhysicsBody(bodies: physicsBodies)
-    obstaclesTileMap.physicsBody?.isDynamic = false
-    obstaclesTileMap.physicsBody?.friction = 0
   }
   
   
@@ -239,6 +265,34 @@ class GameScene: SKScene {
       player.hasBugspray = true
     }
   }
+  
+  func tileGroupForName(tileSet: SKTileSet, name: String)
+    -> SKTileGroup? {
+      let tileGroup = tileSet.tileGroups
+        .filter { $0.name == name }.first
+      return tileGroup
+  }
+  
+  func advanceBreakableTile(locatedAt nodePosition: CGPoint) {
+    guard let obstaclesTileMap = obstaclesTileMap else { return }
+    // 1
+    let (column, row) = tileCoordinates(in: obstaclesTileMap,
+                                        at: nodePosition)
+    // 2
+    let obstacle = tile(in: obstaclesTileMap,
+                        at: (column, row))
+    // 3
+    guard let nextTileGroupName =
+      obstacle?.userData?.object(forKey: "breakable") as? String
+      else { return }
+    // 4
+    if let nextTileGroup =
+      tileGroupForName(tileSet: obstaclesTileMap.tileSet,
+                       name: nextTileGroupName) {
+      obstaclesTileMap.setTileGroup(nextTileGroup,
+                                    forColumn: column, row: row)
+    }
+  }
 }
 
 
@@ -253,6 +307,13 @@ extension GameScene : SKPhysicsContactDelegate {
       if let bug = other.node as? Bug {
         remove(bug: bug)
         player.hasBugspray = false
+      }
+    case PhysicsCategory.Breakable:
+      if let obstacleNode = other.node {
+        // 1
+        advanceBreakableTile(locatedAt: obstacleNode.position)
+        // 2
+        obstacleNode.removeFromParent()
       }
     default:
       break
